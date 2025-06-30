@@ -1,0 +1,130 @@
+pip install pandas numpy scikit-learn matplotlib seaborn
+
+
+import pandas as pd
+
+# Define column names as per UCI documentation
+columns = [
+    'Status_Checking_Acc', 'Duration', 'Credit_History', 'Purpose',
+    'Credit_Amount', 'Savings_Acc', 'Employment_Since', 'Installment_Rate',
+    'Personal_Status_Sex', 'Other_Debtors', 'Residence_Since', 'Property',
+    'Age', 'Other_Installment_Plans', 'Housing', 'Num_Credits',
+    'Job', 'Liable_People', 'Telephone', 'Foreign_Worker', 'Target'
+]
+
+# Load dataset
+df = pd.read_csv("german.data", sep=' ', names=columns)
+
+# Map target (1: Good credit, 2: Bad credit) → (0: Bad, 1: Good)
+df["Target"] = df["Target"].map({1: 1, 2: 0})
+
+
+
+from sklearn.preprocessing import LabelEncoder
+
+# Encode categorical columns
+categorical_cols = df.select_dtypes(include='object').columns
+for col in categorical_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+X = df.drop("Target", axis=1)
+y = df["Target"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+models = {
+    "Logistic Regression": LogisticRegression(),
+    "Decision Tree": DecisionTreeClassifier(),
+    "Random Forest": RandomForestClassifier()
+}
+
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    print(f"\n {name} Accuracy: {model.score(X_test, y_test):.4f}")
+
+
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def evaluate_model(model, name):
+    y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:, 1]
+
+    print(f"\n📌 {name} Evaluation:")
+    print(classification_report(y_test, y_pred))
+    print("ROC-AUC:", roc_auc_score(y_test, y_prob))
+
+    sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt="d", cmap="Blues")
+    plt.title(f"Confusion Matrix - {name}")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.show()
+
+for name, model in models.items():
+    evaluate_model(model, name)
+
+
+# Already trained
+rf_model = models["Random Forest"]
+dt_model = models["Decision Tree"]
+
+
+# Predict classes
+rf_preds = rf_model.predict(X_test)
+dt_preds = dt_model.predict(X_test)
+
+# Predict probabilities (optional, useful for ROC-AUC)
+rf_probs = rf_model.predict_proba(X_test)[:, 1]
+dt_probs = dt_model.predict_proba(X_test)[:, 1]
+
+
+print("Random Forest Predictions:", rf_preds[:10])
+print("Decision Tree Predictions:", dt_preds[:10])
+
+
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+# For Random Forest
+print("\n Random Forest:")
+print("Accuracy:", accuracy_score(y_test, rf_preds))
+print("Report:\n", classification_report(y_test, rf_preds))
+
+# For Decision Tree
+print("\n Decision Tree:")
+print("Accuracy:", accuracy_score(y_test, dt_preds))
+print("Report:\n", classification_report(y_test, dt_preds))
+
+
+import matplotlib.pyplot as plt
+
+importances = rf_model.feature_importances_
+features = df.drop("Target", axis=1).columns
+
+plt.figure(figsize=(10, 5))
+plt.barh(features, importances)
+plt.xlabel("Feature Importance")
+plt.title("Random Forest - Feature Importances")
+plt.show()
+
+
+
+
+
+
+
+
